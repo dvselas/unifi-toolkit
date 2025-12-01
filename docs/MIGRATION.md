@@ -1,10 +1,10 @@
-# Migration Guide: Wi-Fi Stalker → UniFi Toolkit
+# Migration Guide: Wi-Fi Stalker → UI Toolkit
 
-This guide helps you migrate from the standalone **Wi-Fi Stalker** application to the new **UniFi Toolkit** monorepo.
+This guide helps you migrate from the standalone **Wi-Fi Stalker** application to the new **UI Toolkit** monorepo.
 
 ## Overview
 
-UniFi Toolkit is a comprehensive collection of UniFi management tools, with Wi-Fi Stalker as the first integrated tool. The migration preserves all your existing data while providing a foundation for future tools.
+UI Toolkit is a comprehensive collection of UniFi management tools, with Wi-Fi Stalker as the first integrated tool. The migration preserves all your existing data while providing a foundation for future tools.
 
 ## What's Changed
 
@@ -36,7 +36,7 @@ UniFi Toolkit is a comprehensive collection of UniFi management tools, with Wi-F
 
 ### Option 1: Fresh Installation (Recommended)
 
-The easiest approach is to start fresh with UniFi Toolkit and re-add your devices.
+The easiest approach is to start fresh with UI Toolkit and re-add your devices.
 
 1. **Stop the old Wi-Fi Stalker**:
    ```bash
@@ -50,7 +50,7 @@ The easiest approach is to start fresh with UniFi Toolkit and re-add your device
    # Press Ctrl+C in the terminal
    ```
 
-2. **Clone UniFi Toolkit**:
+2. **Clone UI Toolkit**:
    ```bash
    git clone https://github.com/Crosstalk-Solutions/unifi-toolkit.git
    cd unifi-toolkit
@@ -105,7 +105,7 @@ If you have extensive history you want to preserve, you can migrate your databas
    cp ~/path/to/wifi-stalker/wifi_stalker.db ~/wifi_stalker_backup.db
    ```
 
-2. **Clone and set up UniFi Toolkit** (follow steps 2-4 from Option 1)
+2. **Clone and set up UI Toolkit** (follow steps 2-4 from Option 1)
 
 3. **Copy and rename database**:
    ```bash
@@ -152,7 +152,7 @@ For a clean migration with selective data preservation:
    - Click "View History" and export to CSV
    - Save device MAC addresses and friendly names
 
-2. **Set up new UniFi Toolkit** (follow Option 1, steps 1-5)
+2. **Set up new UI Toolkit** (follow Option 1, steps 1-5)
 
 3. **Import devices**:
    - Navigate to Wi-Fi Stalker
@@ -248,7 +248,7 @@ ports:
 
 If migration fails, you can rollback:
 
-1. **Stop UniFi Toolkit**:
+1. **Stop UI Toolkit**:
    ```bash
    docker-compose down
    # or
@@ -282,7 +282,7 @@ If you encounter issues during migration:
 
 ## Future Migrations
 
-When new tools are added to UniFi Toolkit, no migration will be needed. Simply update the application:
+When new tools are added to UI Toolkit, no migration will be needed. Simply update the application:
 
 ```bash
 # Pull latest changes

@@ -1,5 +1,5 @@
 """
-Configuration management for UniFi Toolkit
+Configuration management for UI Toolkit
 """
 from pydantic_settings import BaseSettings
 from typing import Optional
@@ -7,7 +7,7 @@ from typing import Optional
 
 class ToolkitSettings(BaseSettings):
     """
-    UniFi Toolkit settings loaded from environment variables
+    UI Toolkit settings loaded from environment variables
     """
     # Required
     encryption_key: str

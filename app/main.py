@@ -1,5 +1,5 @@
 """
-UniFi Toolkit - Unified FastAPI Application
+UI Toolkit - Unified FastAPI Application
 
 This is the main application that mounts all available tools as sub-applications.
 """
@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     Application lifespan manager - handles startup and shutdown events
     """
     # Startup
-    logger.info("Starting UniFi Toolkit...")
+    logger.info("Starting UI Toolkit...")
     settings = get_settings()
     logger.info(f"Log level: {settings.log_level}")
 
@@ -50,24 +50,24 @@ async def lifespan(app: FastAPI):
     await start_scheduler()
     logger.info("Wi-Fi Stalker scheduler started")
 
-    logger.info("UniFi Toolkit started successfully")
+    logger.info("UI Toolkit started successfully")
 
     yield
 
     # Shutdown
-    logger.info("Shutting down UniFi Toolkit...")
+    logger.info("Shutting down UI Toolkit...")
 
     # Stop Wi-Fi Stalker scheduler
     logger.info("Stopping Wi-Fi Stalker scheduler...")
     await stop_scheduler()
     logger.info("Wi-Fi Stalker scheduler stopped")
 
-    logger.info("UniFi Toolkit shut down complete")
+    logger.info("UI Toolkit shut down complete")
 
 
 # Create main application
 app = FastAPI(
-    title="UniFi Toolkit",
+    title="UI Toolkit",
     description="Comprehensive toolkit for UniFi network management and monitoring",
     version="1.1.0",
     lifespan=lifespan

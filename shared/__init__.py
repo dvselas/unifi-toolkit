@@ -1,4 +1,4 @@
 """
-UniFi Toolkit - Shared Infrastructure
+UI Toolkit - Shared Infrastructure
 """
 __version__ = "1.1.0"

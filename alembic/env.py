@@ -1,5 +1,5 @@
 """
-Alembic environment configuration for UniFi Toolkit
+Alembic environment configuration for UI Toolkit
 
 This file is responsible for:
 1. Loading database URL from settings

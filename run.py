@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-UniFi Toolkit - Application Entry Point
+UI Toolkit - Application Entry Point
 
-This script starts the UniFi Toolkit web application.
+This script starts the UI Toolkit web application.
 It checks for required environment variables and starts the FastAPI server.
 """
 import os
@@ -63,10 +63,10 @@ if __name__ == "__main__":
     settings = get_settings()
 
     print("=" * 70)
-    print("Starting UniFi Toolkit...")
+    print("Starting UI Toolkit...")
     print("=" * 70)
     print()
-    print(f"Version: 1.0.0")
+    print(f"Version: 1.1.0")
     print(f"Log Level: {settings.log_level}")
     print(f"Database: {settings.database_url}")
     print()

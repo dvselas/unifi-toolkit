@@ -129,7 +129,7 @@ def format_slack_message(
                 "title": f"{emoji} {title}",
                 "text": text,
                 "fields": fields,
-                "footer": "Wi-Fi Stalker | UniFi Toolkit",
+                "footer": "Wi-Fi Stalker | UI Toolkit",
                 "ts": int(datetime.now(timezone.utc).timestamp())
             }
         ]
@@ -201,7 +201,7 @@ def format_discord_message(
                 "color": color,
                 "fields": fields,
                 "footer": {
-                    "text": "Wi-Fi Stalker | UniFi Toolkit"
+                    "text": "Wi-Fi Stalker | UI Toolkit"
                 },
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }

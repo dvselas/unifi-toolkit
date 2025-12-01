@@ -1,5 +1,5 @@
 """
-Database connection and session management for UniFi Toolkit
+Database connection and session management for UI Toolkit
 """
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**UniFi Toolkit** (v1.1.0) is a comprehensive monorepo containing multiple tools for UniFi network management and monitoring. Each tool operates independently but shares common infrastructure for UniFi API access, database management, and configuration.
+**UI Toolkit** (v1.1.0) is a comprehensive monorepo containing multiple tools for UniFi network management and monitoring. Each tool operates independently but shares common infrastructure for UniFi API access, database management, and configuration.
 
 **Current Tools:**
 - **Wi-Fi Stalker v0.6.0** - Track specific client devices, monitor roaming, and maintain connection history
