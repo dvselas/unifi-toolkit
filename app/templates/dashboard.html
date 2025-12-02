@@ -729,7 +729,7 @@
                 }
             }
 
-            // Save config
+            // Save config (tests connection first, only saves if successful)
             async function saveConfig(e) {
                 e.preventDefault();
 
@@ -749,7 +749,33 @@
                     return;
                 }
 
+                // Disable save button while testing
+                const saveBtn = configForm.querySelector('button[type="submit"]');
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Testing connection...';
+
                 try {
+                    // First, test the connection with the provided credentials
+                    showConfigMessage('Testing connection before saving...', 'info');
+
+                    const testResponse = await fetch('/api/config/unifi/test', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+
+                    const testResult = await testResponse.json();
+
+                    if (!testResult.connected) {
+                        showConfigMessage(`Connection failed: ${testResult.error || 'Unable to connect'}. Configuration was NOT saved.`, 'error');
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save Config';
+                        return;
+                    }
+
+                    // Connection successful - now save the config
+                    saveBtn.textContent = 'Saving...';
+
                     const response = await fetch('/api/config/unifi', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -759,7 +785,8 @@
                     const result = await response.json();
 
                     if (response.ok) {
-                        showConfigMessage('Configuration saved successfully!', 'success');
+                        let message = `Connection verified (${testResult.client_count || 0} clients found). Configuration saved!`;
+                        showConfigMessage(message, 'success');
                         // Reload system status after saving
                         setTimeout(() => {
                             closeModal();
@@ -769,18 +796,46 @@
                         showConfigMessage(result.detail || 'Failed to save configuration', 'error');
                     }
                 } catch (error) {
-                    showConfigMessage('Error saving configuration: ' + error.message, 'error');
+                    showConfigMessage('Error: ' + error.message, 'error');
+                } finally {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save Config';
                 }
             }
 
-            // Test connection
+            // Test connection (tests the form data, not saved config)
             async function testConnection() {
+                const formData = new FormData(configForm);
+                const data = {
+                    controller_url: formData.get('controller_url'),
+                    username: formData.get('username') || 'admin',
+                    password: formData.get('password') || null,
+                    api_key: formData.get('api_key') || null,
+                    site_id: formData.get('site_id') || 'default',
+                    verify_ssl: formData.get('verify_ssl') === 'on'
+                };
+
+                // Validate that either password or API key is provided
+                if (!data.password && !data.api_key) {
+                    showConfigMessage('Please provide either a password or API key', 'error');
+                    return;
+                }
+
+                if (!data.controller_url) {
+                    showConfigMessage('Please enter a controller URL', 'error');
+                    return;
+                }
+
                 testConnectionBtn.disabled = true;
                 testConnectionBtn.textContent = 'Testing...';
                 showConfigMessage('Testing connection to UniFi controller...', 'info');
 
                 try {
-                    const response = await fetch('/api/config/unifi/test');
+                    const response = await fetch('/api/config/unifi/test', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
                     const result = await response.json();
 
                     if (result.connected) {

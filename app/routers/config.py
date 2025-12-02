@@ -147,12 +147,39 @@ async def get_unifi_config(
     )
 
 
+@router.post("/unifi/test", response_model=UniFiConnectionTest)
+async def test_unifi_credentials(config: UniFiConfigCreate):
+    """
+    Test UniFi credentials WITHOUT saving them first.
+    Use this to validate credentials before saving.
+    """
+    # Validate that either password or API key is provided
+    if not config.password and not config.api_key:
+        return UniFiConnectionTest(
+            connected=False,
+            error="Either password or api_key must be provided"
+        )
+
+    # Create UniFi client with provided credentials
+    client = UniFiClient(
+        host=config.controller_url,
+        username=config.username,
+        password=config.password,
+        api_key=config.api_key,
+        site=config.site_id,
+        verify_ssl=config.verify_ssl
+    )
+
+    test_result = await client.test_connection()
+    return UniFiConnectionTest(**test_result)
+
+
 @router.get("/unifi/test", response_model=UniFiConnectionTest)
-async def test_unifi_connection(
+async def test_saved_unifi_connection(
     db: AsyncSession = Depends(get_db_session)
 ):
     """
-    Test connection to UniFi controller
+    Test connection using saved UniFi configuration
     """
     # Get config from database
     result = await db.execute(select(UniFiConfig).where(UniFiConfig.id == 1))
