@@ -288,13 +288,22 @@ Login with the credentials you configured during setup.
 ### Configure UniFi Controller
 
 1. Open UI Toolkit in your browser
-2. Click on **Wi-Fi Stalker** or **Threat Watch**
-3. Click **Settings** (gear icon)
-4. Enter your UniFi controller details:
-   - **Controller URL**: `https://192.168.1.1` (your controller IP)
-   - **Authentication**: Username/password OR API key
-   - **Site ID**: Usually `default`
+2. Click the **Settings cog (⚙️)** in the dashboard header
+3. Enter your UniFi controller details:
+
+**For Legacy Controllers (CloudKey, self-hosted):**
+   - **Controller URL**: `https://192.168.1.1` or `https://cloudkey.local`
+   - **Username**: Your UniFi admin username
+   - **Password**: Your UniFi admin password
+   - **Site ID**: Usually `default` (or site name from URL)
    - **Verify SSL**: Disable for self-signed certificates
+
+**For UniFi OS (UDM, UCG, UniFi OS Server):**
+   - **Controller URL**: Include port number, e.g., `https://192.168.1.1` or `https://unifiosserver.example.com:11443`
+   - **API Key**: Generate in Settings → Admins → Create API Token
+   - **Site ID**: Alphanumeric code from site URL (e.g., `7jnove4a` from `/network/7jnove4a/...`)
+   - **Verify SSL**: Disable for self-signed certificates
+   - **Note**: Leave username/password blank when using API key
 
 ### Test Connection
 
