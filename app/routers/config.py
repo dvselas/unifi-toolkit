@@ -251,6 +251,9 @@ async def check_gateway_availability(
     """
     Check if a UniFi Gateway is present on the site.
     This is required for Threat Watch (IDS/IPS features).
+
+    Note: Legacy controllers (Cloud Key, self-hosted) do NOT expose IDS/IPS
+    API endpoints, regardless of what gateway hardware is present.
     """
     # Get config from database
     result = await db.execute(select(UniFiConfig).where(UniFiConfig.id == 1))
@@ -279,6 +282,10 @@ async def check_gateway_availability(
             error=f"Failed to decrypt credentials: {str(e)}"
         )
 
+    # Check if this is a legacy controller (not UniFi OS and no API key)
+    # Legacy controllers don't expose IDS/IPS API endpoints
+    is_legacy_controller = not config.is_unifi_os and not api_key
+
     # Create UniFi client and check for gateway
     client = UniFiClient(
         host=config.controller_url,
@@ -303,6 +310,17 @@ async def check_gateway_availability(
 
         # Get gateway info including IDS/IPS support
         gateway_info = await client.get_gateway_info()
+
+        # Legacy controllers don't expose IDS/IPS API regardless of gateway hardware
+        if is_legacy_controller:
+            gateway_name = gateway_info.get("gateway_name", "Unknown")
+            return GatewayCheckResponse(
+                has_gateway=gateway_info.get("has_gateway", False),
+                supports_ids_ips=False,
+                gateway_name=f"{gateway_name} (Legacy Controller)",
+                configured=True
+            )
+
         return GatewayCheckResponse(
             has_gateway=gateway_info.get("has_gateway", False),
             supports_ids_ips=gateway_info.get("supports_ids_ips", False),

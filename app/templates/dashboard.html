@@ -939,13 +939,20 @@
                         threatWatchStatus.style.display = 'block';
                         threatWatchStatus.innerHTML = '⚠️ <strong>Threat Watch requires a UniFi Gateway.</strong><br>Your site has no gateway device (UDM, UCG, UXG, or USG). IDS/IPS features are only available on gateway devices.';
                     } else if (!data.supports_ids_ips) {
-                        // Gateway found but doesn't support IDS/IPS (e.g., UniFi Express)
+                        // Gateway found but doesn't support IDS/IPS
                         const gatewayName = data.gateway_name || 'your gateway';
+                        const isLegacyController = gatewayName.includes('Legacy Controller');
                         threatWatchCard.classList.add('tool-unavailable');
                         threatWatchBtn.classList.add('disabled');
                         threatWatchBtn.style.pointerEvents = 'none';
                         threatWatchStatus.style.display = 'block';
-                        threatWatchStatus.innerHTML = `⚠️ <strong>IDS/IPS not available on ${gatewayName}.</strong><br>This gateway model does not include IDS/IPS capabilities.`;
+                        if (isLegacyController) {
+                            // Legacy controller (Cloud Key, self-hosted) doesn't expose IDS/IPS API
+                            threatWatchStatus.innerHTML = `⚠️ <strong>IDS/IPS not available on legacy controllers.</strong><br>Your ${gatewayName.replace(' (Legacy Controller)', '')} supports IDS/IPS, but the legacy Network Controller (Cloud Key, self-hosted) does not expose these API endpoints. IDS/IPS monitoring requires a UniFi OS console (UDM, UCG, etc.).`;
+                        } else {
+                            // Gateway model itself doesn't support IDS/IPS (e.g., UniFi Express)
+                            threatWatchStatus.innerHTML = `⚠️ <strong>IDS/IPS not available on ${gatewayName}.</strong><br>This gateway model does not include IDS/IPS capabilities.`;
+                        }
                     } else {
                         // Gateway with IDS/IPS found - Threat Watch available
                         threatWatchCard.classList.remove('tool-unavailable');
