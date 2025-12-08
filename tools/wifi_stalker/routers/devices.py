@@ -151,7 +151,10 @@ async def get_device_details(
 
     # Always try to get blocked status and live data from UniFi
     try:
-        await unifi_client.connect()
+        connected = await unifi_client.connect()
+        if not connected:
+            logger.warning(f"Could not connect to UniFi for device details {device_id}")
+            return DeviceDetailResponse(**detail_data)
         try:
             mac_normalized = device.mac_address.lower()
 
@@ -283,7 +286,9 @@ async def block_device(
         raise HTTPException(status_code=404, detail="Device not found")
 
     # Connect to UniFi and block the device
-    await unifi_client.connect()
+    connected = await unifi_client.connect()
+    if not connected:
+        raise HTTPException(status_code=503, detail="Failed to connect to UniFi controller")
     try:
         success = await unifi_client.block_client(device.mac_address)
         if success:
@@ -323,7 +328,9 @@ async def unblock_device(
         raise HTTPException(status_code=404, detail="Device not found")
 
     # Connect to UniFi and unblock the device
-    await unifi_client.connect()
+    connected = await unifi_client.connect()
+    if not connected:
+        raise HTTPException(status_code=503, detail="Failed to connect to UniFi controller")
     try:
         success = await unifi_client.unblock_client(device.mac_address)
         if success:
@@ -364,7 +371,9 @@ async def update_unifi_name(
         raise HTTPException(status_code=404, detail="Device not found")
 
     # Connect to UniFi and update the name
-    await unifi_client.connect()
+    connected = await unifi_client.connect()
+    if not connected:
+        raise HTTPException(status_code=503, detail="Failed to connect to UniFi controller")
     try:
         success = await unifi_client.set_client_name(device.mac_address, name)
         if success:
@@ -400,7 +409,9 @@ async def discover_unifi_clients(
         tracked_macs = {device.mac_address.lower() for device in tracked_devices}
 
         # Connect to UniFi and get clients
-        await unifi_client.connect()
+        connected = await unifi_client.connect()
+        if not connected:
+            raise HTTPException(status_code=503, detail="Failed to connect to UniFi controller")
         try:
             clients_dict = await unifi_client.get_clients()
 
