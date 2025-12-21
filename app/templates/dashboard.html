@@ -721,8 +721,12 @@
                 }
             }
 
-            // Load on page load
-            loadSystemStatus();
+            // Load on page load and signal when done
+            loadSystemStatus().then(() => {
+                // Dispatch event to signal that system status is loaded and cache is ready
+                window.systemStatusLoadedFired = true;
+                window.dispatchEvent(new CustomEvent('systemStatusLoaded'));
+            });
 
             // Refresh every 60 seconds
             setInterval(loadSystemStatus, 60000);
@@ -1006,11 +1010,18 @@
                 setTimeout(() => checkGatewayAvailability(true), 500);
             };
 
-            // Check on page load
-            checkGatewayAvailability();
+            // Wait for system status to load first (which populates the cache)
+            // This prevents the race condition where gateway-check runs before cache is ready
+            window.addEventListener('systemStatusLoaded', () => {
+                checkGatewayAvailability();
+            }, { once: true });
 
-            // Re-check after system status loads (in case config was just added)
-            setTimeout(checkGatewayAvailability, 2000);
+            // Fallback: if system status hasn't loaded within 5 seconds, check anyway
+            setTimeout(() => {
+                if (!window.systemStatusLoadedFired) {
+                    checkGatewayAvailability();
+                }
+            }, 5000);
         })();
     </script>
 </body>
