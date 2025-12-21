@@ -1,0 +1,88 @@
+"""
+Network Pulse FastAPI application factory
+"""
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pathlib import Path
+import logging
+
+from tools.network_pulse import __version__
+from tools.network_pulse.routers import stats
+from tools.network_pulse.models import SystemStatus
+from tools.network_pulse.scheduler import get_last_refresh, get_last_error, get_cached_data
+from shared.websocket_manager import get_ws_manager
+
+logger = logging.getLogger(__name__)
+
+# Get the directory containing this file
+BASE_DIR = Path(__file__).parent
+
+# Set up templates and static files
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def create_app() -> FastAPI:
+    """
+    Create and configure the Network Pulse sub-application
+
+    Returns:
+        Configured FastAPI application instance
+    """
+    app = FastAPI(
+        title="Network Pulse",
+        version=__version__,
+        description="Real-time network monitoring dashboard for UniFi"
+    )
+
+    # Mount static files
+    app.mount(
+        "/static",
+        StaticFiles(directory=str(BASE_DIR / "static")),
+        name="pulse_static"
+    )
+
+    # Include API routers
+    app.include_router(stats.router)
+
+    # Dashboard route
+    @app.get("/")
+    async def dashboard(request: Request):
+        """Serve the Network Pulse dashboard"""
+        return templates.TemplateResponse(
+            "index.html",
+            {"request": request, "version": __version__}
+        )
+
+    # Status endpoint
+    @app.get("/api/status", response_model=SystemStatus, tags=["status"])
+    async def get_status():
+        """Get system status including last refresh time and connection status"""
+        cached = get_cached_data()
+        return SystemStatus(
+            last_refresh=get_last_refresh(),
+            is_connected=cached is not None,
+            error=get_last_error()
+        )
+
+    # WebSocket endpoint for real-time updates
+    @app.websocket("/ws")
+    async def websocket_endpoint(websocket: WebSocket):
+        """WebSocket endpoint for real-time dashboard updates"""
+        ws_manager = get_ws_manager()
+        await ws_manager.connect(websocket)
+
+        try:
+            while True:
+                # Wait for messages from client (ping/pong)
+                data = await websocket.receive_text()
+                # Echo back for ping/pong
+                if data == '{"type":"ping"}':
+                    await websocket.send_text('{"type":"pong"}')
+        except WebSocketDisconnect:
+            ws_manager.disconnect(websocket)
+        except Exception as e:
+            logger.error(f"WebSocket error: {e}")
+            ws_manager.disconnect(websocket)
+
+    return app
