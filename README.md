@@ -30,6 +30,14 @@ Monitor IDS/IPS security events from your UniFi gateway.
 - Top attackers and targets
 - Webhook alerts (Slack, Discord, n8n)
 
+### Network Pulse
+Real-time network monitoring dashboard.
+- Gateway status (model, firmware, uptime, WAN)
+- Device counts (total clients, wired, wireless, APs, switches)
+- Chart.js visualizations (clients by band, clients by SSID, top bandwidth)
+- Clickable AP cards with detailed client views
+- WebSocket-powered live updates
+
 ### UI Product Selector *(External)*
 Build the perfect UniFi network at [uiproductselector.com](https://uiproductselector.com)
 
@@ -105,7 +113,7 @@ Access at **https://your-domain.com**
 | View logs | `docker compose logs -f` |
 | Restart | `docker compose restart` |
 | Reset password | `./reset_password.sh` |
-| Update | `git pull && docker compose build && docker compose up -d` |
+| Update | `./upgrade.sh` |
 
 ---
 
@@ -260,12 +268,13 @@ python run.py
 unifi-toolkit/
 ├── app/                    # Main application
 │   ├── main.py            # FastAPI entry point
-│   ├── routers/           # API routes (auth)
+│   ├── routers/           # API routes (auth, config)
 │   ├── static/            # CSS, images
 │   └── templates/         # HTML templates
 ├── tools/                 # Individual tools
 │   ├── wifi_stalker/      # Wi-Fi Stalker tool
-│   └── threat_watch/      # Threat Watch tool
+│   ├── threat_watch/      # Threat Watch tool
+│   └── network_pulse/     # Network Pulse tool
 ├── shared/                # Shared infrastructure
 │   ├── config.py          # Settings management
 │   ├── database.py        # SQLAlchemy setup
@@ -274,6 +283,7 @@ unifi-toolkit/
 ├── docs/                  # Documentation
 ├── data/                  # Database (created at runtime)
 ├── setup.sh               # Setup wizard
+├── upgrade.sh             # Upgrade script
 ├── reset_password.sh      # Password reset utility
 ├── Caddyfile              # Reverse proxy config
 ├── docker-compose.yml     # Docker configuration

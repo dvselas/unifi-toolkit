@@ -54,18 +54,18 @@ docker compose --profile production up -d
 | View logs | `docker compose logs -f` |
 | Restart | `docker compose restart` |
 | Reset password | `./reset_password.sh` |
-| Update | `git pull && docker compose build && docker compose up -d` |
+| Update | `./upgrade.sh` |
 
 ---
 
 ## First-Time Setup
 
 1. Open UI Toolkit in browser
-2. Click **Wi-Fi Stalker** or **Threat Watch**
-3. Click **Settings** (gear icon)
-4. Enter UniFi controller details
-5. Click **Test Connection**
-6. Start tracking devices or monitoring threats
+2. Click the **Settings cog (⚙️)** in the dashboard header
+3. Enter UniFi controller details
+4. Click **Test Connection**
+5. Save configuration
+6. Start using tools (Wi-Fi Stalker, Threat Watch, Network Pulse)
 
 ---
 

@@ -312,6 +312,7 @@ After configuring, click **Test Connection** to verify connectivity.
 
 - **Wi-Fi Stalker**: Track specific devices by MAC address
 - **Threat Watch**: Monitor IDS/IPS security events
+- **Network Pulse**: Real-time network monitoring dashboard
 
 ---
 
