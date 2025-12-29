@@ -1,7 +1,7 @@
 """
 Network Pulse FastAPI application factory
 """
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
@@ -12,6 +12,7 @@ from tools.network_pulse.routers import stats
 from tools.network_pulse.models import SystemStatus
 from tools.network_pulse.scheduler import get_last_refresh, get_last_error, get_cached_data
 from shared.websocket_manager import get_ws_manager
+from app.routers.auth import is_auth_enabled, verify_session
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,19 @@ def create_app() -> FastAPI:
     # WebSocket endpoint for real-time updates
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
-        """WebSocket endpoint for real-time dashboard updates"""
+        """
+        WebSocket endpoint for real-time dashboard updates.
+
+        In production mode, requires valid session authentication via cookie.
+        """
+        # Check authentication in production mode
+        if is_auth_enabled():
+            session_token = websocket.cookies.get("session_token")
+            if not session_token or not verify_session(session_token):
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                logger.warning("Network Pulse WebSocket rejected: not authenticated")
+                return
+
         ws_manager = get_ws_manager()
         await ws_manager.connect(websocket)
 

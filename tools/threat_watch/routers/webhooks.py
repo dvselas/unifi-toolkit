@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from shared.database import get_db_session
 from shared.webhooks import deliver_threat_webhook
+from shared.url_validator import validate_webhook_url
 from tools.threat_watch.database import ThreatWebhookConfig
 from tools.threat_watch.models import (
     WebhookCreate,
@@ -50,6 +51,14 @@ async def create_webhook(
         raise HTTPException(
             status_code=400,
             detail=f"Invalid webhook type. Must be one of: {', '.join(valid_types)}"
+        )
+
+    # Validate webhook URL to prevent SSRF
+    is_valid, error_msg = validate_webhook_url(webhook.url)
+    if not is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid webhook URL: {error_msg}"
         )
 
     new_webhook = ThreatWebhookConfig(
@@ -104,6 +113,15 @@ async def update_webhook(
 
     if not webhook:
         raise HTTPException(status_code=404, detail="Webhook not found")
+
+    # Validate new URL if provided
+    if update.url is not None:
+        is_valid, error_msg = validate_webhook_url(update.url)
+        if not is_valid:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid webhook URL: {error_msg}"
+            )
 
     # Update fields if provided
     if update.name is not None:

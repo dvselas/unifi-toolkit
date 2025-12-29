@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 from shared.database import get_db_session
 from shared.webhooks import deliver_webhook
+from shared.url_validator import validate_webhook_url
 from tools.wifi_stalker.database import WebhookConfig
 from tools.wifi_stalker.models import (
     WebhookCreate,
@@ -47,6 +48,14 @@ async def create_webhook(
         raise HTTPException(
             status_code=400,
             detail="Invalid webhook type. Must be 'slack', 'discord', or 'n8n'"
+        )
+
+    # Validate webhook URL to prevent SSRF
+    is_valid, error_msg = validate_webhook_url(webhook.url)
+    if not is_valid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid webhook URL: {error_msg}"
         )
 
     # Create new webhook
@@ -102,6 +111,15 @@ async def update_webhook(
 
     if not webhook:
         raise HTTPException(status_code=404, detail="Webhook not found")
+
+    # Validate new URL if provided
+    if webhook_update.url is not None:
+        is_valid, error_msg = validate_webhook_url(webhook_update.url)
+        if not is_valid:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid webhook URL: {error_msg}"
+            )
 
     # Update fields if provided
     if webhook_update.name is not None:

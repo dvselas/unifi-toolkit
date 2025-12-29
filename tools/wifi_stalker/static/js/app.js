@@ -264,7 +264,8 @@ function dashboard() {
                 const response = await fetch(`${API_BASE_PATH}/api/devices`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
                     body: JSON.stringify(this.newDevice)
                 });
@@ -298,7 +299,10 @@ function dashboard() {
 
             try {
                 const response = await fetch(`${API_BASE_PATH}/api/devices/${deviceId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
 
                 if (response.ok) {
@@ -409,7 +413,8 @@ function dashboard() {
                     const response = await fetch(`${API_BASE_PATH}/api/devices`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
                         },
                         body: JSON.stringify({
                             mac_address: mac,
@@ -467,7 +472,10 @@ function dashboard() {
 
             try {
                 const response = await fetch(`${API_BASE_PATH}/api/devices/${deviceId}/block`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
 
                 if (response.ok) {
@@ -490,7 +498,10 @@ function dashboard() {
         async unblockDevice(deviceId) {
             try {
                 const response = await fetch(`${API_BASE_PATH}/api/devices/${deviceId}/unblock`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
 
                 if (response.ok) {
@@ -517,7 +528,10 @@ function dashboard() {
 
             try {
                 const response = await fetch(`${API_BASE_PATH}/api/devices/${deviceId}/unifi-name?name=${encodeURIComponent(newName)}`, {
-                    method: 'PUT'
+                    method: 'PUT',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
 
                 if (response.ok) {
@@ -733,7 +747,8 @@ function dashboard() {
                 const response = await fetch(url, {
                     method: method,
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
                     body: JSON.stringify(this.webhookForm)
                 });
@@ -783,7 +798,10 @@ function dashboard() {
 
             try {
                 const response = await fetch(`${API_BASE_PATH}/api/webhooks/${webhookId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
 
                 if (response.ok) {
@@ -804,7 +822,10 @@ function dashboard() {
         async testWebhook(webhookId) {
             try {
                 const response = await fetch(`${API_BASE_PATH}/api/webhooks/${webhookId}/test`, {
-                    method: 'POST'
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
 
                 if (response.ok) {

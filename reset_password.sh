@@ -60,9 +60,15 @@ check_python() {
 }
 
 # Hash password with bcrypt
+# Uses stdin to avoid shell injection vulnerabilities with special characters
 hash_password() {
     local password="$1"
-    $PYTHON_CMD -c "import bcrypt; print(bcrypt.hashpw('$password'.encode(), bcrypt.gensalt()).decode())" 2>/dev/null || {
+    echo "$password" | $PYTHON_CMD -c "
+import sys
+import bcrypt
+password = sys.stdin.readline().rstrip('\n')
+print(bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode())
+" 2>/dev/null || {
         print_error "Failed to hash password"
         print_info "Make sure bcrypt is installed: pip install bcrypt"
         exit 1

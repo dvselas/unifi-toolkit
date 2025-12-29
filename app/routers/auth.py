@@ -241,12 +241,28 @@ async def logout(request: Request):
 
 class AuthMiddleware(BaseHTTPMiddleware):
     """
-    Middleware to enforce authentication on all routes when in production mode.
-    Allows unauthenticated access to /login, /static, and /health endpoints.
+    Middleware to enforce authentication and CSRF protection when in production mode.
+
+    Authentication:
+    - Allows unauthenticated access to /login, /static, and /health endpoints.
+
+    CSRF Protection:
+    - Requires 'X-Requested-With' header for state-changing API requests (POST, PUT, DELETE, PATCH)
+    - This prevents cross-site request forgery since browsers don't send custom headers
+      in simple cross-origin requests without CORS preflight
     """
 
+    # Methods that require CSRF protection
+    CSRF_PROTECTED_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
+
+    # API paths that need CSRF protection (when using protected methods)
+    API_PREFIXES = ["/api/", "/stalker/api/", "/threats/api/", "/pulse/api/"]
+
+    # Paths exempt from CSRF (login form uses traditional form submission)
+    CSRF_EXEMPT_PATHS = ["/login"]
+
     async def dispatch(self, request: Request, call_next):
-        # Skip auth check if not in production mode
+        # Skip all checks if not in production mode
         if not is_auth_enabled():
             return await call_next(request)
 
@@ -259,6 +275,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         ]
 
         path = request.url.path
+        method = request.method
 
         # Check if path is public
         is_public = any(
@@ -275,7 +292,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not session:
             # Not authenticated, redirect to login
             # For API requests, return 401 instead of redirect
-            if path.startswith("/api/") or path.startswith("/stalker/api/") or path.startswith("/threats/api/"):
+            if any(path.startswith(prefix) for prefix in self.API_PREFIXES):
                 from fastapi.responses import JSONResponse
                 return JSONResponse(
                     status_code=401,
@@ -284,7 +301,23 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
             return RedirectResponse(url="/login", status_code=303)
 
-        # Authenticated, continue
+        # CSRF Protection for state-changing requests
+        if method in self.CSRF_PROTECTED_METHODS:
+            is_api_request = any(path.startswith(prefix) for prefix in self.API_PREFIXES)
+            is_csrf_exempt = any(path.startswith(exempt) for exempt in self.CSRF_EXEMPT_PATHS)
+
+            if is_api_request and not is_csrf_exempt:
+                # Require X-Requested-With header for API state-changing requests
+                requested_with = request.headers.get("X-Requested-With")
+                if requested_with != "XMLHttpRequest":
+                    from fastapi.responses import JSONResponse
+                    logger.warning(f"CSRF check failed for {method} {path} - missing X-Requested-With header")
+                    return JSONResponse(
+                        status_code=403,
+                        content={"detail": "CSRF validation failed. Include 'X-Requested-With: XMLHttpRequest' header."}
+                    )
+
+        # Authenticated and CSRF valid, continue
         return await call_next(request)
 
 

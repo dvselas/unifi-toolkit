@@ -411,12 +411,17 @@ source venv/bin/activate
 # Pull latest changes
 git pull origin main
 
+# Update Python dependencies (important for security patches)
+pip install -r requirements.txt --upgrade
+
 # Apply any database migrations
 alembic upgrade head
 
 # Restart the application
 python run.py
 ```
+
+> **Note**: Unlike Docker deployments where dependencies are updated automatically during image rebuild, Python/venv installations require manually running `pip install -r requirements.txt --upgrade` to receive security patches and dependency updates.
 
 **Note:** Always run migrations after pulling updates. Skipping this step can cause SQLite errors if the update includes database schema changes. See [Database Errors After Git Pull](#database-errors-after-git-pull) for troubleshooting.
 

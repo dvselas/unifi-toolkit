@@ -6,7 +6,7 @@ This is the main application that mounts all available tools as sub-applications
 import os
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -23,7 +23,7 @@ from tools.network_pulse.main import create_app as create_pulse_app
 from tools.network_pulse.scheduler import start_scheduler as start_pulse_scheduler, stop_scheduler as stop_pulse_scheduler
 
 # Import authentication router and middleware
-from app.routers.auth import router as auth_router, AuthMiddleware, is_auth_enabled
+from app.routers.auth import router as auth_router, AuthMiddleware, is_auth_enabled, verify_session
 from app.routers.config import router as config_router
 
 # Configure logging - respect LOG_LEVEL from environment
@@ -300,10 +300,22 @@ async def get_system_status():
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket):
+async def websocket_endpoint(websocket: WebSocket):
     """
-    WebSocket endpoint for real-time updates
+    WebSocket endpoint for real-time updates.
+
+    In production mode, requires valid session authentication via cookie.
     """
+    # Check authentication in production mode
+    if is_auth_enabled():
+        # Get session token from cookies
+        session_token = websocket.cookies.get("session_token")
+        if not session_token or not verify_session(session_token):
+            # Reject unauthenticated WebSocket connections
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            logger.warning("WebSocket connection rejected: not authenticated")
+            return
+
     ws_manager = get_ws_manager()
     await ws_manager.connect(websocket)
     try:
@@ -314,10 +326,12 @@ async def websocket_endpoint(websocket):
             if data == "ping":
                 # Respond with pong
                 await websocket.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        pass  # Normal disconnect
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
     finally:
-        await ws_manager.disconnect(websocket)
+        ws_manager.disconnect(websocket)
 
 
 if __name__ == "__main__":

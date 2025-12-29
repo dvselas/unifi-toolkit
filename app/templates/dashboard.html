@@ -811,7 +811,10 @@
 
                     const testResponse = await fetch('/api/config/unifi/test', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
                         body: JSON.stringify(data)
                     });
 
@@ -829,7 +832,10 @@
 
                     const response = await fetch('/api/config/unifi', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
                         body: JSON.stringify(data)
                     });
 
@@ -884,7 +890,10 @@
                 try {
                     const response = await fetch('/api/config/unifi/test', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
                         body: JSON.stringify(data)
                     });
                     const result = await response.json();
