@@ -9,8 +9,20 @@ Step-by-step instructions for running UI Toolkit on Synology NAS using Container
 ## Prerequisites
 
 - **Synology NAS** with Container Manager installed (DSM 7.2+)
-- **SSH access** enabled on your Synology (Control Panel → Terminal & SNMP → Enable SSH)
+- **SSH access** enabled (see below)
 - **Supported architectures**: Intel (x86_64) or ARM64-based Synology models
+
+### Enable SSH on Synology
+
+SSH is disabled by default. To enable it:
+
+1. Open **Control Panel**
+2. Go to **Terminal & SNMP**
+3. Check **Enable SSH service**
+4. (Optional) Change the port from 22 if desired
+5. Click **Apply**
+
+You can then connect with: `ssh your-admin-user@your-synology-ip`
 
 ---
 
