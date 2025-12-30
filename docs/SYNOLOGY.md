@@ -2,7 +2,16 @@
 
 Step-by-step instructions for running UI Toolkit on Synology NAS using Container Manager.
 
-> **Good news:** UI Toolkit is now available on Docker Hub, which means Synology users can download directly from the Container Manager GUI with full update notification support!
+## Quick Start (Recommended)
+
+The easiest way to install UI Toolkit on Synology:
+
+1. Create folders: `docker/unifi-toolkit/data/` and a `.env` file (see [Step 1](#step-1-create-folder-structure) and [Step 2](#step-2-create-configuration-file))
+2. Set permissions: `sudo chown -R 1000:1000 /volume1/docker/unifi-toolkit/data`
+3. In Container Manager → **Registry** → search `crosstalksolutions/unifi-toolkit` → **Download**
+4. In **Image** → select the image → **Run** → configure ports and volumes → **Done**
+
+Full details in [Method A: Container Manager GUI](#method-a-container-manager-gui-recommended) below.
 
 ---
 
