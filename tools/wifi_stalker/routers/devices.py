@@ -6,14 +6,14 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import asyncio
 import csv
 import io
 
 from shared.database import get_db_session
 from shared.unifi_client import UniFiClient
-from tools.wifi_stalker.database import TrackedDevice, ConnectionHistory, WebhookConfig
+from tools.wifi_stalker.database import TrackedDevice, ConnectionHistory, WebhookConfig, HourlyPresence
 from tools.wifi_stalker.models import (
     DeviceCreate,
     DeviceResponse,
@@ -24,7 +24,10 @@ from tools.wifi_stalker.models import (
     SuccessResponse,
     UniFiClientInfo,
     UniFiClientsResponse,
-    SystemStatus
+    SystemStatus,
+    DwellTimeResponse,
+    FavoriteAPResponse,
+    PresencePatternResponse
 )
 from tools.wifi_stalker.routers.config import get_unifi_client
 from tools.wifi_stalker.scheduler import refresh_single_device, get_last_refresh, trigger_webhooks
@@ -554,4 +557,233 @@ async def export_device_history(
         iter([output.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+# Analytics Endpoints
+
+@router.get("/{device_id}/analytics/dwell-time", response_model=DwellTimeResponse)
+async def get_dwell_time(
+    device_id: int,
+    window: str = Query(default="7d", regex="^(24h|7d|30d|all)$"),
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Get dwell time analytics for a device.
+    Shows time spent on each AP within the specified time window.
+
+    Args:
+        device_id: ID of the device
+        window: Time window - "24h", "7d", "30d", or "all"
+    """
+    # Check if device exists
+    device_result = await db.execute(
+        select(TrackedDevice).where(TrackedDevice.id == device_id)
+    )
+    device = device_result.scalar_one_or_none()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Calculate time window
+    now = datetime.now(timezone.utc)
+    if window == "24h":
+        start_time = now - timedelta(hours=24)
+    elif window == "7d":
+        start_time = now - timedelta(days=7)
+    elif window == "30d":
+        start_time = now - timedelta(days=30)
+    else:  # "all"
+        start_time = None
+
+    # Build query for connection history (wireless only)
+    query = select(ConnectionHistory).where(
+        ConnectionHistory.device_id == device_id,
+        ConnectionHistory.is_wired == False,
+        ConnectionHistory.ap_name.isnot(None)
+    )
+
+    if start_time:
+        query = query.where(ConnectionHistory.connected_at >= start_time)
+
+    result = await db.execute(query)
+    history_entries = result.scalars().all()
+
+    # Aggregate time by AP
+    ap_times = {}
+    for entry in history_entries:
+        ap_name = entry.ap_name
+        if not ap_name:
+            continue
+
+        # Calculate duration
+        if entry.duration_seconds:
+            duration_minutes = entry.duration_seconds // 60
+        elif entry.disconnected_at:
+            duration = (entry.disconnected_at - entry.connected_at).total_seconds()
+            duration_minutes = int(duration // 60)
+        else:
+            # Still connected - calculate from connected_at to now
+            connected_at = entry.connected_at
+            if connected_at.tzinfo is None:
+                connected_at = connected_at.replace(tzinfo=timezone.utc)
+            duration = (now - connected_at).total_seconds()
+            duration_minutes = int(duration // 60)
+
+        if ap_name in ap_times:
+            ap_times[ap_name] += duration_minutes
+        else:
+            ap_times[ap_name] = duration_minutes
+
+    total_minutes = sum(ap_times.values())
+
+    return DwellTimeResponse(
+        ap_times=ap_times,
+        total_minutes=total_minutes,
+        window=window
+    )
+
+
+@router.get("/{device_id}/analytics/favorite-ap", response_model=FavoriteAPResponse)
+async def get_favorite_ap(
+    device_id: int,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Get the favorite AP for a device (most time spent over 30 days).
+    Uses most recent connection as tie-breaker.
+    """
+    # Check if device exists
+    device_result = await db.execute(
+        select(TrackedDevice).where(TrackedDevice.id == device_id)
+    )
+    device = device_result.scalar_one_or_none()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Calculate 30-day window
+    now = datetime.now(timezone.utc)
+    start_time = now - timedelta(days=30)
+
+    # Get connection history for 30 days (wireless only)
+    result = await db.execute(
+        select(ConnectionHistory).where(
+            ConnectionHistory.device_id == device_id,
+            ConnectionHistory.is_wired == False,
+            ConnectionHistory.ap_name.isnot(None),
+            ConnectionHistory.connected_at >= start_time
+        )
+    )
+    history_entries = result.scalars().all()
+
+    if not history_entries:
+        return FavoriteAPResponse(
+            ap_name=None,
+            total_hours=0.0,
+            has_data=False
+        )
+
+    # Aggregate time by AP, tracking most recent connection
+    ap_data = {}  # ap_name -> {"minutes": int, "last_seen": datetime}
+
+    for entry in history_entries:
+        ap_name = entry.ap_name
+        if not ap_name:
+            continue
+
+        # Calculate duration
+        if entry.duration_seconds:
+            duration_minutes = entry.duration_seconds // 60
+        elif entry.disconnected_at:
+            duration = (entry.disconnected_at - entry.connected_at).total_seconds()
+            duration_minutes = int(duration // 60)
+        else:
+            # Still connected
+            connected_at = entry.connected_at
+            if connected_at.tzinfo is None:
+                connected_at = connected_at.replace(tzinfo=timezone.utc)
+            duration = (now - connected_at).total_seconds()
+            duration_minutes = int(duration // 60)
+
+        if ap_name not in ap_data:
+            ap_data[ap_name] = {"minutes": 0, "last_seen": entry.connected_at}
+
+        ap_data[ap_name]["minutes"] += duration_minutes
+        if entry.connected_at > ap_data[ap_name]["last_seen"]:
+            ap_data[ap_name]["last_seen"] = entry.connected_at
+
+    if not ap_data:
+        return FavoriteAPResponse(
+            ap_name=None,
+            total_hours=0.0,
+            has_data=False
+        )
+
+    # Find favorite AP (max minutes, with most recent as tie-breaker)
+    favorite = max(
+        ap_data.items(),
+        key=lambda x: (x[1]["minutes"], x[1]["last_seen"])
+    )
+
+    return FavoriteAPResponse(
+        ap_name=favorite[0],
+        total_hours=round(favorite[1]["minutes"] / 60, 1),
+        has_data=True
+    )
+
+
+@router.get("/{device_id}/analytics/presence-pattern", response_model=PresencePatternResponse)
+async def get_presence_pattern(
+    device_id: int,
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Get presence pattern heat map data for a device.
+    Returns a 24x7 matrix showing average minutes connected per hour slot.
+    """
+    # Check if device exists
+    device_result = await db.execute(
+        select(TrackedDevice).where(TrackedDevice.id == device_id)
+    )
+    device = device_result.scalar_one_or_none()
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    # Get all hourly presence data for this device
+    result = await db.execute(
+        select(HourlyPresence).where(HourlyPresence.device_id == device_id)
+    )
+    presence_records = result.scalars().all()
+
+    # Calculate days of data based on max sample_count
+    max_samples = max((p.sample_count for p in presence_records), default=0)
+    days_of_data = max_samples // 24 if max_samples >= 24 else (
+        1 if max_samples > 0 else 0
+    )
+
+    # Build 24x7 matrix (hours as rows, days as columns)
+    # Initialize with zeros
+    data = [[0 for _ in range(7)] for _ in range(24)]
+
+    for record in presence_records:
+        hour = record.hour_of_day
+        day = record.day_of_week
+
+        # Calculate average minutes for this slot
+        if record.sample_count > 0:
+            avg_minutes = record.total_minutes_connected // record.sample_count
+        else:
+            avg_minutes = 0
+
+        data[hour][day] = avg_minutes
+
+    # Require at least 7 days of data for meaningful patterns
+    has_sufficient_data = days_of_data >= 7
+
+    return PresencePatternResponse(
+        data=data,
+        has_sufficient_data=has_sufficient_data,
+        days_of_data=days_of_data
     )

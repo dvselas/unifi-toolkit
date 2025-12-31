@@ -2,7 +2,7 @@
 Pydantic models for API requests and responses
 """
 from pydantic import BaseModel, Field, field_validator, field_serializer
-from typing import Optional
+from typing import Optional, Dict, List
 from datetime import datetime, timezone
 import re
 
@@ -359,3 +359,37 @@ class WebhooksListResponse(BaseModel):
     """
     webhooks: list[WebhookResponse]
     total: int
+
+
+# Analytics Models
+
+class DwellTimeResponse(BaseModel):
+    """
+    Response model for dwell time analytics.
+    Shows time spent on each AP within the specified time window.
+    """
+    ap_times: Dict[str, int]  # ap_name -> minutes
+    total_minutes: int
+    window: str  # "24h", "7d", "30d", "all"
+
+
+class FavoriteAPResponse(BaseModel):
+    """
+    Response model for favorite AP detection.
+    Shows the AP where the device spends the most time (30-day window).
+    """
+    ap_name: Optional[str] = None
+    total_hours: float = 0.0
+    has_data: bool = False
+
+
+class PresencePatternResponse(BaseModel):
+    """
+    Response model for presence pattern heat map.
+    Returns a 24x7 matrix of minutes connected for each hour slot.
+    """
+    # 24 rows (hours 0-23), 7 columns (Mon-Sun)
+    # Each value is average minutes connected during that hour slot
+    data: List[List[int]]
+    has_sufficient_data: bool
+    days_of_data: int

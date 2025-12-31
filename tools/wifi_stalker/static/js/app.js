@@ -41,6 +41,14 @@ function dashboard() {
         // Device details
         deviceDetails: null,
 
+        // Analytics data
+        dwellTimeWindow: '7d',
+        dwellTimeShowHours: false,
+        dwellTimeData: null,
+        favoriteAP: null,
+        presencePattern: null,
+        dwellTimeChart: null,
+
         // Webhooks
         webhooks: [],
         webhookForm: {
@@ -456,6 +464,27 @@ function dashboard() {
                 const data = await response.json();
                 this.deviceDetails = data;
                 this.showDeviceDetails = true;
+
+                // Load analytics for wireless devices
+                if (!data.is_wired) {
+                    // Reset analytics data
+                    this.dwellTimeData = null;
+                    this.favoriteAP = null;
+                    this.presencePattern = null;
+
+                    // Destroy existing chart
+                    if (this.dwellTimeChart) {
+                        this.dwellTimeChart.destroy();
+                        this.dwellTimeChart = null;
+                    }
+
+                    // Load analytics data in parallel
+                    await Promise.all([
+                        this.loadDwellTime(deviceId),
+                        this.loadFavoriteAP(deviceId),
+                        this.loadPresencePattern(deviceId)
+                    ]);
+                }
             } catch (error) {
                 console.error('Failed to load device details:', error);
                 this.showToast('Failed to load device details', 'error');
@@ -856,6 +885,198 @@ function dashboard() {
                 event_device_unblocked: true,
                 enabled: true
             };
+        },
+
+        // ==========================================
+        // Analytics Methods
+        // ==========================================
+
+        /**
+         * Load dwell time data for a device
+         */
+        async loadDwellTime(deviceId) {
+            const id = deviceId || this.deviceDetails?.id;
+            if (!id) return;
+
+            try {
+                const response = await fetch(
+                    `${API_BASE_PATH}/api/devices/${id}/analytics/dwell-time?window=${this.dwellTimeWindow}`
+                );
+                this.dwellTimeData = await response.json();
+
+                // Wait for next tick then render chart
+                setTimeout(() => this.renderDwellTimeChart(), 50);
+            } catch (error) {
+                console.error('Failed to load dwell time:', error);
+            }
+        },
+
+        /**
+         * Load favorite AP for a device
+         */
+        async loadFavoriteAP(deviceId) {
+            const id = deviceId || this.deviceDetails?.id;
+            if (!id) return;
+
+            try {
+                const response = await fetch(
+                    `${API_BASE_PATH}/api/devices/${id}/analytics/favorite-ap`
+                );
+                this.favoriteAP = await response.json();
+            } catch (error) {
+                console.error('Failed to load favorite AP:', error);
+            }
+        },
+
+        /**
+         * Load presence pattern for a device
+         */
+        async loadPresencePattern(deviceId) {
+            const id = deviceId || this.deviceDetails?.id;
+            if (!id) return;
+
+            try {
+                const response = await fetch(
+                    `${API_BASE_PATH}/api/devices/${id}/analytics/presence-pattern`
+                );
+                this.presencePattern = await response.json();
+            } catch (error) {
+                console.error('Failed to load presence pattern:', error);
+            }
+        },
+
+        /**
+         * Render the dwell time pie chart
+         */
+        renderDwellTimeChart() {
+            // Destroy existing chart if any
+            if (this.dwellTimeChart) {
+                this.dwellTimeChart.destroy();
+                this.dwellTimeChart = null;
+            }
+
+            const ctx = document.getElementById('dwellTimeChart');
+            if (!ctx || !this.dwellTimeData || this.dwellTimeData.total_minutes === 0) {
+                return;
+            }
+
+            const labels = Object.keys(this.dwellTimeData.ap_times);
+            const data = Object.values(this.dwellTimeData.ap_times);
+
+            // Get theme-aware colors
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const textColor = isDark ? '#e5e7eb' : '#374151';
+
+            this.dwellTimeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: this.getChartColors(labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: textColor,
+                                padding: 10,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => {
+                                    const minutes = context.raw;
+                                    const total = this.dwellTimeData.total_minutes;
+                                    const pct = ((minutes / total) * 100).toFixed(1);
+
+                                    if (this.dwellTimeShowHours) {
+                                        const hours = (minutes / 60).toFixed(1);
+                                        return `${context.label}: ${hours}h (${pct}%)`;
+                                    }
+                                    return `${context.label}: ${pct}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        },
+
+        /**
+         * Toggle between percentage and hours display
+         */
+        toggleDwellTimeDisplay() {
+            this.dwellTimeShowHours = !this.dwellTimeShowHours;
+            this.renderDwellTimeChart();
+        },
+
+        /**
+         * Get chart colors (matches Network Pulse palette)
+         */
+        getChartColors(count) {
+            const colors = [
+                '#3b82f6', // blue
+                '#f97316', // orange
+                '#8b5cf6', // purple
+                '#22c55e', // green
+                '#ef4444', // red
+                '#06b6d4', // cyan
+                '#f59e0b', // amber
+                '#ec4899', // pink
+                '#14b8a6', // teal
+                '#6366f1', // indigo
+                '#84cc16', // lime
+                '#f43f5e'  // rose
+            ];
+            return colors.slice(0, count);
+        },
+
+        /**
+         * Format hour for heat map labels (e.g., "12a", "3p")
+         */
+        formatHour(hour) {
+            if (hour === 0) return '12a';
+            if (hour === 12) return '12p';
+            if (hour < 12) return `${hour}a`;
+            return `${hour - 12}p`;
+        },
+
+        /**
+         * Get CSS class for heat map cell based on value
+         */
+        getHeatClass(value) {
+            // Value is average minutes connected (0-60 range)
+            if (value >= 50) return 'heat-high';      // 50+ minutes = frequently connected
+            if (value >= 30) return 'heat-medium';    // 30-50 minutes
+            if (value >= 10) return 'heat-low';       // 10-30 minutes
+            if (value > 0) return 'heat-rare';        // 1-10 minutes
+            return 'heat-never';                       // 0 minutes
+        },
+
+        /**
+         * Get tooltip text for heat map cell
+         */
+        getHeatTooltip(hour, day, value) {
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const hourStr = this.formatHour(hour);
+            const dayStr = days[day];
+
+            if (value === 0) {
+                return `${dayStr} ${hourStr}: Rarely connected`;
+            }
+
+            const avgMinutes = value;
+            if (avgMinutes >= 50) {
+                return `${dayStr} ${hourStr}: Usually connected (~${avgMinutes}min avg)`;
+            }
+            return `${dayStr} ${hourStr}: Sometimes connected (~${avgMinutes}min avg)`;
         }
     };
 }

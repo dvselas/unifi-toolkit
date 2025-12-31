@@ -13,6 +13,7 @@
             document.documentElement.setAttribute('data-theme', savedTheme);
         })();
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body>
@@ -424,7 +425,7 @@
         <div x-show="showDeviceDetails"
              @click.self="showDeviceDetails = false"
              class="modal">
-            <div class="modal-content modal-large">
+            <div class="modal-content modal-xlarge">
                 <div class="modal-header">
                     <h2 x-text="(deviceDetails?.friendly_name || deviceDetails?.mac_address || 'Device') + ' Details'"></h2>
                     <button @click="showDeviceDetails = false" class="close-btn">×</button>
@@ -495,6 +496,13 @@
                                         <span class="info-label">Current AP:</span>
                                         <span class="info-value" x-text="deviceDetails?.current_ap_name || '-'"></span>
                                     </div>
+                                    <div class="info-item" x-show="favoriteAP?.has_data">
+                                        <span class="info-label">Favorite AP:</span>
+                                        <span class="info-value">
+                                            <span class="favorite-badge">⭐</span>
+                                            <span x-text="favoriteAP?.ap_name"></span>
+                                        </span>
+                                    </div>
                                     <div class="info-item">
                                         <span class="info-label">Signal Strength:</span>
                                         <span x-show="deviceDetails?.current_signal_strength"
@@ -515,12 +523,13 @@
                                 </div>
                             </template>
                             <div class="info-item">
-                                <span class="info-label">Download Speed:</span>
-                                <span class="info-value" x-text="deviceDetails?.tx_rate ? deviceDetails.tx_rate + ' Mbps' : '-'"></span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Upload Speed:</span>
-                                <span class="info-value" x-text="deviceDetails?.rx_rate ? deviceDetails.rx_rate + ' Mbps' : '-'"></span>
+                                <span class="info-label">Download / Upload:</span>
+                                <span class="info-value">
+                                    <span x-text="deviceDetails?.tx_rate ? deviceDetails.tx_rate : '-'"></span>
+                                    /
+                                    <span x-text="deviceDetails?.rx_rate ? deviceDetails.rx_rate : '-'"></span>
+                                    <span x-show="deviceDetails?.tx_rate || deviceDetails?.rx_rate"> Mbps</span>
+                                </span>
                             </div>
                         </div>
 
@@ -546,6 +555,83 @@
                             <div class="info-item">
                                 <span class="info-label">Added:</span>
                                 <span class="info-value" x-text="formatDateTime(deviceDetails?.added_at)"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analytics Section (wireless only) -->
+                    <div class="analytics-section" x-show="!deviceDetails?.is_wired">
+                        <h3>Device Analytics</h3>
+                        <div class="analytics-grid">
+                            <!-- Dwell Time Chart -->
+                            <div class="analytics-card">
+                                <div class="analytics-header">
+                                    <span class="analytics-title">Dwell Time by AP</span>
+                                    <select x-model="dwellTimeWindow" @change="loadDwellTime()" class="analytics-select">
+                                        <option value="24h">Last 24 Hours</option>
+                                        <option value="7d">Last 7 Days</option>
+                                        <option value="30d">Last 30 Days</option>
+                                        <option value="all">All Time</option>
+                                    </select>
+                                </div>
+                                <div class="chart-container" x-show="dwellTimeData?.total_minutes > 0">
+                                    <canvas id="dwellTimeChart"></canvas>
+                                </div>
+                                <div class="no-data-message" x-show="!dwellTimeData?.total_minutes">
+                                    No dwell time data available for this period.
+                                </div>
+                                <a href="#"
+                                   @click.prevent="toggleDwellTimeDisplay()"
+                                   class="toggle-link"
+                                   x-show="dwellTimeData?.total_minutes > 0">
+                                    Show <span x-text="dwellTimeShowHours ? 'percentages' : 'hours'"></span>
+                                </a>
+                            </div>
+
+                            <!-- Presence Heat Map -->
+                            <div class="analytics-card">
+                                <div class="analytics-header">
+                                    <span class="analytics-title">Presence Pattern</span>
+                                </div>
+                                <div class="heat-map-wrapper" x-show="presencePattern?.has_sufficient_data">
+                                    <!-- Day labels header -->
+                                    <div class="heat-map-header">
+                                        <div class="heat-map-corner"></div>
+                                        <template x-for="day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']">
+                                            <div class="heat-map-day-label" x-text="day"></div>
+                                        </template>
+                                    </div>
+                                    <!-- Heat map grid with hour labels -->
+                                    <div class="heat-map-body">
+                                        <template x-for="(row, hour) in presencePattern?.data || []" :key="hour">
+                                            <div class="heat-map-row">
+                                                <div class="heat-map-hour-label" x-text="formatHour(hour)"></div>
+                                                <template x-for="(value, day) in row" :key="day">
+                                                    <div class="heat-map-cell"
+                                                         :class="getHeatClass(value)"
+                                                         :title="getHeatTooltip(hour, day, value)">
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <!-- Legend -->
+                                    <div class="heat-map-legend">
+                                        <span class="legend-label">Less</span>
+                                        <div class="legend-cell heat-never"></div>
+                                        <div class="legend-cell heat-rare"></div>
+                                        <div class="legend-cell heat-low"></div>
+                                        <div class="legend-cell heat-medium"></div>
+                                        <div class="legend-cell heat-high"></div>
+                                        <span class="legend-label">More</span>
+                                    </div>
+                                </div>
+                                <div class="no-data-message" x-show="!presencePattern?.has_sufficient_data">
+                                    Presence patterns require at least 7 days of data.
+                                    <span x-show="presencePattern?.days_of_data > 0">
+                                        Currently have <span x-text="presencePattern?.days_of_data"></span> day(s).
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>

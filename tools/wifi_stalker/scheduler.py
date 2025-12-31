@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,7 @@ from shared.crypto import decrypt_password, decrypt_api_key
 from shared.config import get_settings
 from shared.websocket_manager import get_ws_manager
 from shared.webhooks import deliver_webhook
-from tools.wifi_stalker.database import TrackedDevice, ConnectionHistory, WebhookConfig
+from tools.wifi_stalker.database import TrackedDevice, ConnectionHistory, WebhookConfig, HourlyPresence
 
 logger = logging.getLogger(__name__)
 
@@ -592,14 +593,26 @@ async def start_scheduler():
         max_instances=1  # Prevent overlapping runs
     )
 
+    # Add hourly presence aggregation job for analytics
+    scheduler.add_job(
+        aggregate_hourly_presence,
+        trigger=CronTrigger(minute=0),  # Run at the top of every hour
+        id="aggregate_hourly_presence",
+        name="Aggregate hourly presence data",
+        replace_existing=True,
+        misfire_grace_time=3600,  # Allow up to 1 hour late
+        max_instances=1
+    )
+
     # Start the scheduler
     scheduler.start()
     logger.info(
         f"Scheduler started with refresh interval: {settings.stalker_refresh_interval} seconds"
     )
 
-    # Run the refresh task immediately on startup
+    # Run tasks immediately on startup
     await refresh_tracked_devices()
+    await aggregate_hourly_presence()
 
 
 async def stop_scheduler():
@@ -610,3 +623,71 @@ async def stop_scheduler():
     if scheduler.running:
         scheduler.shutdown()
         logger.info("Scheduler stopped")
+
+
+async def aggregate_hourly_presence():
+    """
+    Hourly task to update presence aggregation table for analytics.
+
+    For each tracked wireless device that is currently connected,
+    increments the total_minutes_connected for the current hour slot.
+    This builds up a heat map of when devices are typically online.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        day_of_week = now.weekday()  # 0=Monday, 6=Sunday
+        hour_of_day = now.hour
+
+        logger.info(f"Running hourly presence aggregation (day={day_of_week}, hour={hour_of_day})")
+
+        db_instance = get_database()
+        async for session in db_instance.get_session():
+            # Get all tracked wireless devices that are currently connected
+            result = await session.execute(
+                select(TrackedDevice).where(
+                    TrackedDevice.is_connected == True,
+                    TrackedDevice.is_wired == False
+                )
+            )
+            connected_devices = result.scalars().all()
+
+            if not connected_devices:
+                logger.debug("No connected wireless devices to aggregate")
+                return
+
+            logger.info(f"Aggregating presence for {len(connected_devices)} connected devices")
+
+            for device in connected_devices:
+                # Find or create the hourly presence record for this slot
+                presence_result = await session.execute(
+                    select(HourlyPresence).where(
+                        HourlyPresence.device_id == device.id,
+                        HourlyPresence.day_of_week == day_of_week,
+                        HourlyPresence.hour_of_day == hour_of_day
+                    )
+                )
+                presence = presence_result.scalar_one_or_none()
+
+                if presence:
+                    # Update existing record
+                    presence.total_minutes_connected += 60  # Add one hour
+                    presence.sample_count += 1
+                    presence.last_updated = now
+                else:
+                    # Create new record
+                    presence = HourlyPresence(
+                        device_id=device.id,
+                        day_of_week=day_of_week,
+                        hour_of_day=hour_of_day,
+                        total_minutes_connected=60,
+                        sample_count=1,
+                        last_updated=now
+                    )
+                    session.add(presence)
+
+            await session.commit()
+            logger.info("Hourly presence aggregation completed")
+            break  # Exit the async for loop
+
+    except Exception as e:
+        logger.error(f"Error in hourly presence aggregation: {e}", exc_info=True)

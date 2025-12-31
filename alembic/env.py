@@ -21,7 +21,7 @@ from shared.config import get_settings
 
 # Import all models so Alembic can detect them
 from shared.models.unifi_config import UniFiConfig
-from tools.wifi_stalker.database import TrackedDevice, ConnectionHistory, WebhookConfig
+from tools.wifi_stalker.database import TrackedDevice, ConnectionHistory, WebhookConfig, HourlyPresence
 from tools.threat_watch.database import ThreatEvent, ThreatWebhookConfig
 
 # This is the Alembic Config object, which provides
