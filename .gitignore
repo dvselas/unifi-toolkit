@@ -76,3 +76,4 @@ docker-compose.override.yml
 /build-notes/
 /assets/
 /drafts/
+/docs/ROADMAP.md

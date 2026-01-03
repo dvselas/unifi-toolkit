@@ -749,9 +749,12 @@ The scheduler runs automatically, but to test immediately, restart the app (refr
 
 ## Future Enhancements
 
+See `docs/ROADMAP.md` for the full list of potential features (gitignored - not in public repo).
+
 ### Planned Features
 - **Multi-site support** - Ability to monitor and switch between multiple UniFi sites
 - **Rotating ad banners** - Fetch banner ads from a central JSON source for dynamic updates without app changes
+- **Firewall Buddy** - Simplified firewall rule management (toggle rules, templates, scheduled activation)
 
 ### Architecture Notes
 As new tools are added:
