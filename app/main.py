@@ -42,17 +42,55 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 def run_migrations():
     """
-    Run Alembic migrations safely at startup
+    Run Alembic migrations safely at startup.
+
+    Handles common schema sync issues where the database schema is ahead of
+    the migration history (e.g., after manual schema changes or version jumps).
     """
     try:
         from alembic.config import Config
         from alembic import command
 
         alembic_cfg = Config("alembic.ini")
+
+        # Try to run migrations normally
         command.upgrade(alembic_cfg, "head")
         logger.info("Database migrations completed successfully")
+
     except Exception as e:
-        logger.warning(f"Migration warning (may be safe to ignore): {e}")
+        error_msg = str(e).lower()
+
+        # Check for common schema sync issues
+        schema_sync_errors = [
+            "already exists",
+            "duplicate column",
+            "table already exists",
+            "unique constraint failed",
+        ]
+
+        is_schema_sync_issue = any(err in error_msg for err in schema_sync_errors)
+
+        if is_schema_sync_issue:
+            logger.warning(f"Migration detected schema sync issue: {e}")
+            logger.info("Database schema appears to be ahead of migration history.")
+            logger.info("Attempting to synchronize migration history...")
+
+            try:
+                from alembic.config import Config
+                from alembic import command
+
+                alembic_cfg = Config("alembic.ini")
+                command.stamp(alembic_cfg, "head")
+                logger.info("Migration history synchronized with current schema")
+            except Exception as stamp_error:
+                logger.error(f"Failed to synchronize migration history: {stamp_error}")
+                logger.error("Manual intervention may be required.")
+                logger.error("Try running: alembic stamp head")
+        else:
+            # Unknown error - log it clearly
+            logger.error(f"Migration failed with unexpected error: {e}")
+            logger.error("The application will continue, but some features may not work correctly.")
+            logger.error("Check the database schema and migration history.")
 
 
 @asynccontextmanager

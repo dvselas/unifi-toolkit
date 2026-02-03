@@ -69,6 +69,9 @@ alembic/versions/__pycache__/
 *.backup
 .temp/
 
+# Upgrade backups
+backups/
+
 # Docker
 docker-compose.override.yml
 

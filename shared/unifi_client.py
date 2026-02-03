@@ -847,6 +847,82 @@ class UniFiClient:
             logger.error(f"Error setting name for {mac_address}: {e}")
             return False
 
+    def _normalize_v2_event(self, event: Dict) -> Dict:
+        """
+        Normalize a v2 traffic-flows event to the legacy format expected by the parser.
+
+        The v2 API (Network 10.x) returns events with nested objects (source, destination, ips)
+        while the legacy API returns flat events. This normalizes v2 to look like legacy.
+
+        Args:
+            event: Raw event from v2 traffic-flows API
+
+        Returns:
+            Event dictionary in legacy format
+        """
+        source = event.get('source', {})
+        destination = event.get('destination', {})
+        ips_data = event.get('ips', {})
+
+        # Extract IPS alert information
+        signature = ips_data.get('advanced_information', '')
+
+        # Map risk levels to severity (v2 uses "high", "medium", "low" strings)
+        risk = event.get('risk', '').lower() if event.get('risk') else ''
+        severity_map = {'high': 1, 'medium': 2, 'low': 3}
+        severity = severity_map.get(risk, 3)
+
+        # Determine action from the event
+        action = event.get('action', 'alert')
+        if action == 'allowed':
+            action = 'alert'  # Detection only
+        elif action in ('blocked', 'dropped', 'rejected'):
+            action = 'block'
+
+        # Build normalized event
+        normalized = {
+            # Use flow ID or generate unique ID from timestamp
+            '_id': event.get('id') or str(event.get('time', '')),
+            'flow_id': event.get('id'),
+            'timestamp': event.get('time'),  # Already in milliseconds
+
+            # Alert info from IPS data
+            'inner_alert_signature': signature,
+            'inner_alert_signature_id': ips_data.get('signature_id'),
+            'inner_alert_severity': severity,
+            'inner_alert_category': ips_data.get('ips_category') or event.get('service', ''),
+            'inner_alert_action': action,
+            'msg': signature,
+            'catname': ips_data.get('ips_category'),
+
+            # Network - Source
+            'src_ip': source.get('ip'),
+            'src_port': source.get('port'),
+            'src_mac': source.get('mac'),
+
+            # Network - Destination
+            'dest_ip': destination.get('ip'),
+            'dest_port': destination.get('port'),
+            'dst_mac': destination.get('mac'),
+
+            # Protocol info
+            'proto': event.get('protocol'),
+            'app_proto': event.get('service'),
+            'in_iface': event.get('in'),
+
+            # Geo info (if available in v2 format)
+            'src_ip_country': source.get('country'),
+            'dest_ip_country': destination.get('country'),
+
+            # Site info
+            'site_id': self.site,
+
+            # Mark as v2 format for debugging/logging
+            '_api_version': 'v2'
+        }
+
+        return normalized
+
     async def get_traffic_flows(
         self,
         limit: int = 100,
@@ -920,7 +996,10 @@ class UniFiClient:
                     offset += len(flows)
 
             logger.info(f"Retrieved {len(all_events)} IPS events from traffic flows v2 API")
-            return all_events
+
+            # Normalize v2 events to legacy format for parser compatibility
+            normalized_events = [self._normalize_v2_event(e) for e in all_events]
+            return normalized_events
 
         except Exception as e:
             logger.error(f"Failed to get traffic flows: {e}")
