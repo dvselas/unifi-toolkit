@@ -319,6 +319,15 @@ class UniFiClient:
                         logger.debug(f"UniFi OS login failed: {resp.status} - {error_msg}")
                     except:
                         logger.debug(f"UniFi OS login failed: {resp.status}")
+
+                    # Some legacy controllers return 401 on /api/auth/login instead of 404.
+                    # Verify this is actually UniFi OS by checking a UniFi OS-only endpoint.
+                    if resp.status == 401:
+                        is_real_unifi_os = await self._verify_unifi_os()
+                        if not is_real_unifi_os:
+                            logger.debug("401 from /api/auth/login but not UniFi OS — falling back to legacy")
+                            return "not_found"
+
                     return "auth_failed"
 
                 # Get CSRF token from response headers for future requests
@@ -338,6 +347,19 @@ class UniFiClient:
         except aiohttp.ClientError as e:
             logger.debug(f"UniFi OS connection error: {e}")
             return "not_found"
+
+    async def _verify_unifi_os(self) -> bool:
+        """Check if this is actually UniFi OS by probing a UniFi OS-only endpoint."""
+        try:
+            url = f"{self.host}/proxy/network/api/s/{self.site}/stat/device"
+            async with self._session.get(url) as resp:
+                # UniFi OS returns 401 (needs auth) or 200; legacy returns 404
+                is_unifi_os = resp.status != 404
+                logger.debug(f"UniFi OS verification: /proxy/network/ returned {resp.status} → {'UniFi OS' if is_unifi_os else 'legacy'}")
+                return is_unifi_os
+        except aiohttp.ClientError as e:
+            logger.debug(f"UniFi OS verification failed: {e}")
+            return False
 
     async def _try_legacy_login(self, ssl_param) -> bool:
         """Try to login via legacy controller (aiounifi)."""

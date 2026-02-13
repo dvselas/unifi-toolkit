@@ -2,9 +2,10 @@
 
 All notable changes to UI Toolkit will be documented in this file.
 
-## [1.9.3] - 2026-02-13
+## [1.9.4] - 2026-02-13
 
 ### Fixed
+- **Legacy controller misdetected as UniFi OS** - Self-hosted controllers that return 401 (instead of 404) on `/api/auth/login` were incorrectly identified as UniFi OS, causing "invalid credentials" errors with no fallback to legacy auth. Now verifies UniFi OS by probing `/proxy/network/` before giving up. (#38)
 - **Footer version display** - The `app/__init__.py` version string was never updated past 1.8.9, causing the footer on all pages to show v1.8.9 regardless of the actual running version. This led to incorrect troubleshooting advice telling users they were on an old image when they were actually up to date. (#26, #35)
 
 ---
