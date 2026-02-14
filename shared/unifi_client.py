@@ -28,6 +28,7 @@ IDS_IPS_SUPPORTED_MODELS = {
     # UXG series (Next-Gen Gateway)
     "UXG",          # UXG Lite (model code is just "UXG" not "UXGLITE")
     "UXGPRO",       # UXG Pro
+    "UXGA6AA",      # UXG Fiber
     # UCG series (Cloud Gateway)
     "UCG",          # UCG
     "UCGMAX",       # UCG Max
@@ -59,6 +60,7 @@ UNIFI_MODEL_NAMES = {
     # UXG series - Note: "UXG" is the model code for UXG Lite
     "UXG": "UXG Lite",
     "UXGPRO": "UXG Pro",
+    "UXGA6AA": "UXG Fiber",
     # UCG series
     "UCG": "UCG",
     "UCGMAX": "UCG Max",
