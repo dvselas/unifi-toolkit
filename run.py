@@ -191,6 +191,20 @@ def _repair_schema():
                 print(f"Schema repair: adding missing column '{col_name}' to threats_events")
                 cursor.execute(sql)
 
+        # Repair stalker_tracked_devices
+        cursor.execute("PRAGMA table_info(stalker_tracked_devices)")
+        stalker_columns = {row[1] for row in cursor.fetchall()}
+        if stalker_columns and 'current_ssid' not in stalker_columns:
+            print("Schema repair: adding missing column 'current_ssid' to stalker_tracked_devices")
+            cursor.execute("ALTER TABLE stalker_tracked_devices ADD COLUMN current_ssid VARCHAR")
+
+        # Repair stalker_connection_history
+        cursor.execute("PRAGMA table_info(stalker_connection_history)")
+        history_columns = {row[1] for row in cursor.fetchall()}
+        if history_columns and 'ssid' not in history_columns:
+            print("Schema repair: adding missing column 'ssid' to stalker_connection_history")
+            cursor.execute("ALTER TABLE stalker_connection_history ADD COLUMN ssid VARCHAR")
+
         conn.commit()
         conn.close()
     except Exception as e:

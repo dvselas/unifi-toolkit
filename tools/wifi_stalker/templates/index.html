@@ -63,7 +63,7 @@
             <div class="search-box">
                 <input type="text"
                        x-model="searchQuery"
-                       placeholder="🔍 Search devices by name, MAC, IP, or AP..."
+                       placeholder="🔍 Search devices by name, MAC, IP, AP, or SSID..."
                        class="search-input">
             </div>
 
@@ -141,7 +141,10 @@
                                         </span>
                                     </template>
                                     <template x-if="!device.is_wired">
-                                        <span x-text="device.current_ap_name || '-'"></span>
+                                        <span>
+                                            <span x-text="device.current_ap_name || '-'"></span>
+                                            <span x-show="device.current_ssid" class="ssid-label" x-text="'(' + device.current_ssid + ')'"></span>
+                                        </span>
                                     </template>
                                 </td>
                                 <td>
@@ -501,6 +504,10 @@
                                         <span class="info-label">Current AP:</span>
                                         <span class="info-value" x-text="deviceDetails?.current_ap_name || '-'"></span>
                                     </div>
+                                    <div class="info-item" x-show="deviceDetails?.current_ssid">
+                                        <span class="info-label">SSID:</span>
+                                        <span class="info-value" x-text="deviceDetails?.current_ssid"></span>
+                                    </div>
                                     <div class="info-item" x-show="favoriteAP?.has_data">
                                         <span class="info-label">Favorite AP:</span>
                                         <span class="info-value">
@@ -712,6 +719,7 @@
                                         <template x-if="!entry.is_wired">
                                             <div>
                                                 <strong x-text="entry.ap_name || 'Unknown AP'"></strong>
+                                                <span x-show="entry.ssid" class="ssid-label" x-text="'(' + entry.ssid + ')'"></span>
                                                 <code x-text="entry.ap_mac"></code>
                                             </div>
                                         </template>

@@ -673,7 +673,8 @@ function dashboard() {
                     (device.friendly_name && device.friendly_name.toLowerCase().includes(query)) ||
                     device.mac_address.toLowerCase().includes(query) ||
                     (device.current_ip_address && device.current_ip_address.includes(query)) ||
-                    (device.current_ap_name && device.current_ap_name.toLowerCase().includes(query))
+                    (device.current_ap_name && device.current_ap_name.toLowerCase().includes(query)) ||
+                    (device.current_ssid && device.current_ssid.toLowerCase().includes(query))
                 );
             }
 

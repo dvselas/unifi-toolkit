@@ -137,7 +137,8 @@ def _device_to_dict(device: TrackedDevice) -> dict:
         'is_wired': device.is_wired,
         'current_switch_mac': device.current_switch_mac,
         'current_switch_name': device.current_switch_name,
-        'current_switch_port': device.current_switch_port
+        'current_switch_port': device.current_switch_port,
+        'current_ssid': device.current_ssid
     }
 
 
@@ -238,6 +239,7 @@ async def process_device(
             is_wired = client.get('is_wired', False)
             sw_mac = client.get('sw_mac')
             sw_port = client.get('sw_port')
+            essid = client.get('essid')
         else:
             ap_mac = getattr(client, 'ap_mac', None)
             ip_address = getattr(client, 'ip', None)
@@ -245,6 +247,7 @@ async def process_device(
             is_wired = getattr(client, 'is_wired', False)
             sw_mac = getattr(client, 'sw_mac', None)
             sw_port = getattr(client, 'sw_port', None)
+            essid = getattr(client, 'essid', None)
 
         # Update current IP
         device.current_ip_address = ip_address
@@ -255,6 +258,7 @@ async def process_device(
         if is_wired:
             # Wired device - track switch/port instead of AP
             device.current_signal_strength = None  # No signal for wired
+            device.current_ssid = None  # No SSID for wired
 
             if sw_mac:
                 # Get switch name
@@ -302,6 +306,7 @@ async def process_device(
         else:
             # Wireless device - track AP
             device.current_signal_strength = signal_strength
+            device.current_ssid = essid
 
             # Clear switch fields for wireless devices
             device.current_switch_mac = None
@@ -325,6 +330,7 @@ async def process_device(
                         device_id=device.id,
                         ap_mac=ap_mac,
                         ap_name=ap_name,
+                        ssid=essid,
                         connected_at=datetime.now(timezone.utc),
                         signal_strength=signal_strength,
                         is_wired=False
@@ -376,6 +382,7 @@ async def process_device(
                         device_id=device.id,
                         ap_mac=ap_mac,
                         ap_name=ap_name,
+                        ssid=essid,
                         connected_at=datetime.now(timezone.utc),
                         signal_strength=signal_strength,
                         is_wired=False

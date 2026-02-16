@@ -774,6 +774,13 @@ code {
     background: #ef4444; /* Red */
 }
 
+/* SSID Label */
+.ssid-label {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    margin-left: 0.25rem;
+}
+
 /* Wired Device Indicator */
 .wired-indicator {
     color: var(--primary-color);

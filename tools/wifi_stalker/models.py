@@ -84,6 +84,7 @@ class DeviceResponse(BaseModel):
     last_seen: Optional[datetime]
     current_ap_mac: Optional[str]
     current_ap_name: Optional[str]
+    current_ssid: Optional[str] = None
     current_ip_address: Optional[str]
     current_signal_strength: Optional[int]
     is_connected: bool
@@ -121,6 +122,7 @@ class HistoryEntry(BaseModel):
     device_id: int
     ap_mac: Optional[str]
     ap_name: Optional[str]
+    ssid: Optional[str] = None
     connected_at: datetime
     disconnected_at: Optional[datetime]
     duration_seconds: Optional[int]
@@ -229,6 +231,7 @@ class DeviceDetailResponse(BaseModel):
     last_seen: Optional[datetime]
     current_ap_mac: Optional[str]
     current_ap_name: Optional[str]
+    current_ssid: Optional[str] = None
     current_ip_address: Optional[str]
     current_signal_strength: Optional[int]
     is_connected: bool

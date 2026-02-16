@@ -148,6 +148,7 @@ async def get_device_details(
         "last_seen": device.last_seen,
         "current_ap_mac": device.current_ap_mac,
         "current_ap_name": device.current_ap_name,
+        "current_ssid": device.current_ssid,
         "current_ip_address": device.current_ip_address,
         "current_signal_strength": device.current_signal_strength,
         "is_connected": device.is_connected,
@@ -188,6 +189,11 @@ async def get_device_details(
                             detail_data[field] = client.get(field)
                         else:
                             detail_data[field] = getattr(client, field, None)
+                    # Map essid to current_ssid
+                    if isinstance(client, dict):
+                        detail_data["current_ssid"] = client.get("essid")
+                    else:
+                        detail_data["current_ssid"] = getattr(client, "essid", None)
                     # Get manufacturer from UniFi's OUI data
                     if isinstance(client, dict):
                         detail_data["manufacturer"] = client.get("oui")
@@ -516,6 +522,7 @@ async def export_device_history(
         'Connection Type',
         'AP/Switch Name',
         'AP/Switch MAC',
+        'SSID',
         'Switch Port',
         'Connected At',
         'Disconnected At',
@@ -537,6 +544,7 @@ async def export_device_history(
             connection_type,
             location_name or '-',
             location_mac or '-',
+            entry.ssid or '-',
             switch_port,
             entry.connected_at.isoformat() if entry.connected_at else '-',
             entry.disconnected_at.isoformat() if entry.disconnected_at else '-',
