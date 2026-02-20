@@ -766,6 +766,45 @@
                 }, 5000);
             }
 
+            async function safeParseJson(response) {
+                try {
+                    return await response.json();
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            function formatApiError(payload, fallback = 'Request failed') {
+                if (!payload || typeof payload !== 'object') {
+                    return fallback;
+                }
+
+                if (typeof payload.error === 'string' && payload.error.trim()) {
+                    return payload.error;
+                }
+
+                const detail = payload.detail;
+                if (typeof detail === 'string' && detail.trim()) {
+                    return detail;
+                }
+
+                if (Array.isArray(detail) && detail.length > 0) {
+                    const messages = detail.map((item) => {
+                        if (!item || typeof item !== 'object') {
+                            return String(item);
+                        }
+                        const msg = item.msg || 'Validation error';
+                        const loc = Array.isArray(item.loc)
+                            ? item.loc.filter((part) => part !== 'body').join('.')
+                            : '';
+                        return loc ? `${loc}: ${msg}` : msg;
+                    });
+                    return messages.join('; ');
+                }
+
+                return fallback;
+            }
+
             // Open modal
             function openModal() {
                 configModal.style.display = 'flex';
@@ -850,10 +889,22 @@
                         body: JSON.stringify(data)
                     });
 
-                    const testResult = await testResponse.json();
+                    const testResult = await safeParseJson(testResponse);
 
-                    if (!testResult.connected) {
-                        showConfigMessage(`Connection failed: ${testResult.error || 'Unable to connect'}. Configuration was NOT saved.`, 'error');
+                    if (!testResponse.ok) {
+                        const errorMsg = formatApiError(
+                            testResult,
+                            `Request failed with HTTP ${testResponse.status}`
+                        );
+                        showConfigMessage(`Connection failed: ${errorMsg}. Configuration was NOT saved.`, 'error');
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save Config';
+                        return;
+                    }
+
+                    if (!testResult || !testResult.connected) {
+                        const errorMsg = formatApiError(testResult, 'Unable to connect');
+                        showConfigMessage(`Connection failed: ${errorMsg}. Configuration was NOT saved.`, 'error');
                         saveBtn.disabled = false;
                         saveBtn.textContent = 'Save Config';
                         return;
@@ -871,7 +922,7 @@
                         body: JSON.stringify(data)
                     });
 
-                    const result = await response.json();
+                    const result = await safeParseJson(response);
 
                     if (response.ok) {
                         let message = `Connection verified (${testResult.client_count || 0} clients found). Configuration saved!`;
@@ -882,7 +933,11 @@
                             window.location.reload();
                         }, 1500);
                     } else {
-                        showConfigMessage(result.detail || 'Failed to save configuration', 'error');
+                        const errorMsg = formatApiError(
+                            result,
+                            `Failed to save configuration (HTTP ${response.status})`
+                        );
+                        showConfigMessage(errorMsg, 'error');
                     }
                 } catch (error) {
                     showConfigMessage('Error: ' + error.message, 'error');
@@ -920,7 +975,16 @@
                         },
                         body: JSON.stringify(data)
                     });
-                    const result = await response.json();
+                    const result = await safeParseJson(response);
+
+                    if (!response.ok) {
+                        const errorMsg = formatApiError(
+                            result,
+                            `Request failed with HTTP ${response.status}`
+                        );
+                        showConfigMessage(`✗ Connection failed: ${errorMsg}`, 'error');
+                        return;
+                    }
 
                     if (result.connected) {
                         let message = `✓ Connected successfully! Found ${result.client_count || 0} clients`;
@@ -929,7 +993,8 @@
                         }
                         showConfigMessage(message, 'success');
                     } else {
-                        showConfigMessage(`✗ Connection failed: ${result.error || 'Unknown error'}`, 'error');
+                        const errorMsg = formatApiError(result, 'Unknown error');
+                        showConfigMessage(`✗ Connection failed: ${errorMsg}`, 'error');
                     }
                 } catch (error) {
                     showConfigMessage('Error testing connection: ' + error.message, 'error');

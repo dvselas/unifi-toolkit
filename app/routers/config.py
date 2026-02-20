@@ -22,7 +22,7 @@ class UniFiConfigCreate(BaseModel):
     Request model for UniFi controller configuration
     """
     controller_url: str = Field(..., description="UniFi controller URL")
-    username: str = Field(..., description="UniFi admin username")
+    username: Optional[str] = Field(None, description="UniFi admin username (optional when using API key)")
     password: Optional[str] = Field(None, description="Password for legacy controllers or UniFi OS")
     api_key: Optional[str] = Field(None, description="API key for UniFi OS (UDM, UCG, etc.)")
     site_id: str = Field(default="default", description="UniFi site ID")
@@ -37,7 +37,7 @@ class UniFiConfigResponse(BaseModel):
     """
     id: int
     controller_url: str
-    username: str
+    username: Optional[str]
     has_api_key: bool
     site_id: str
     verify_ssl: bool
@@ -98,6 +98,12 @@ async def save_unifi_config(
             raise HTTPException(
                 status_code=400,
                 detail="Either password or api_key must be provided"
+            )
+        # For legacy auth, require both username and password
+        if not config.api_key and (not config.username or not config.password):
+            raise HTTPException(
+                status_code=400,
+                detail="Username and password are required when api_key is not provided"
             )
 
         # Invalidate cache and shared session since config is changing
@@ -207,6 +213,11 @@ async def test_unifi_credentials(config: UniFiConfigCreate):
         return UniFiConnectionTest(
             connected=False,
             error="Either password or api_key must be provided"
+        )
+    if not config.api_key and (not config.username or not config.password):
+        return UniFiConnectionTest(
+            connected=False,
+            error="Username and password are required when api_key is not provided"
         )
 
     # Create UniFi client with provided credentials
